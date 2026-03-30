@@ -106,12 +106,14 @@ function loadRoboticHand() {
             roboticHand = gltf.scene;
             roboticHand.scale.set(CONFIG.scaleFactor, CONFIG.scaleFactor, CONFIG.scaleFactor);
             
-            // Find all bones
+            // Find all bones - GLTF skinned mesh bones are THREE.Bone objects
             const foundBones = [];
             roboticHand.traverse((child) => {
-                if (child.isBone) {
+                // Check if it's a bone from the armature
+                if (child.type === 'Bone' || child.isBone) {
                     foundBones.push(child.name);
                     bones[child.name] = child;
+                    // Store initial rotation
                     targetRotations[child.name] = { 
                         x: child.rotation.x, 
                         y: child.rotation.y, 
@@ -162,14 +164,14 @@ function mapLandmarksToBones(landmarks) {
     const wrist = landmarks[LANDMARKS.WRIST];
     const middleMCP = landmarks[LANDMARKS.MIDDLE_MCP];
     
+    // Calculate and store angles
+    let updatedBones = 0;
+    
     // Root/Palm rotation
     if (bones[BONE_MAP.Root]) {
         const angleY = Math.atan2(middleMCP.x - wrist.x, middleMCP.z - wrist.z);
-        targetRotations[BONE_MAP.Root] = { 
-            x: 0, 
-            y: angleY, 
-            z: 0 
-        };
+        targetRotations[BONE_MAP.Root] = { x: 0, y: angleY, z: 0 };
+        updatedBones++;
     }
     
     // Map fingers
@@ -190,36 +192,43 @@ function mapLandmarksToBones(landmarks) {
         const pipJoint = f.isThumb ? BONE_MAP.Thumb_IP : BONE_MAP[`${f.name}_PIP`];
         const dipJoint = f.isThumb ? null : BONE_MAP[`${f.name}_DIP`];
         
-        // Calculate curl angles
         const curlMCP = calculateJointAngle(wrist, mcp, pip);
         const curlPIP = calculateJointAngle(mcp, pip, dip);
         
-        if (bones[mcpJoint]) {
-            targetRotations[mcpJoint] = { 
-                x: curlMCP * (f.isThumb ? 0.5 : 1.0), 
-                y: 0, 
-                z: 0 
-            };
+        if (mcpJoint && bones[mcpJoint]) {
+            targetRotations[mcpJoint] = { x: curlMCP * (f.isThumb ? 0.5 : 1.0), y: 0, z: 0 };
+            updatedBones++;
         }
-        if (bones[pipJoint]) {
-            targetRotations[pipJoint] = { 
-                x: curlPIP, 
-                y: 0, 
-                z: 0 
-            };
+        if (pipJoint && bones[pipJoint]) {
+            targetRotations[pipJoint] = { x: curlPIP, y: 0, z: 0 };
+            updatedBones++;
         }
         if (dipJoint && bones[dipJoint]) {
-            targetRotations[dipJoint] = { 
-                x: curlPIP * 0.8, 
-                y: 0, 
-                z: 0 
-            };
+            targetRotations[dipJoint] = { x: curlPIP * 0.8, y: 0, z: 0 };
+            updatedBones++;
         }
+    }
+    
+    if (debugFrame % 60 === 0) {
+        log(`Updated ${updatedBones} bone targets`);
     }
 }
 
+let debugFrame = 0;
+
 function updateBoneRotations() {
     if (!isModelLoaded) return;
+    
+    debugFrame++;
+    if (debugFrame % 60 === 0) {
+        log(`Animation frame ${debugFrame}, currentLandmarks: ${currentLandmarks ? 'YES' : 'NO'}`);
+        if (currentLandmarks) {
+            const mcp = bones['Index_MCP'];
+            if (mcp) {
+                log(`Index_MCP rotation: x=${mcp.rotation.x.toFixed(2)}, target=${targetRotations['Index_MCP']?.x.toFixed(2)}`);
+            }
+        }
+    }
     
     for (let name in targetRotations) {
         const bone = bones[name];
@@ -325,14 +334,21 @@ async function startCamera() {
 function animate() {
     requestAnimationFrame(animate);
     
-    if (currentLandmarks) {
+    // Check if we have landmarks to process
+    if (currentLandmarks && isModelLoaded) {
         mapLandmarksToBones(currentLandmarks);
     }
     
+    // Apply rotations to bones
     updateBoneRotations();
+    
+    // Update controls and render
     controls.update();
     renderer.render(scene, camera);
 }
+
+// Start animation immediately
+log('Animation loop started');
 
 function onWindowResize() {
     const container = document.getElementById('scene-container');
