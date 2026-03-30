@@ -146,7 +146,11 @@ function loadRoboticHand() {
             
             isModelLoaded = true;
             updateStatus('active', 'Model loaded - Start camera to track');
-            document.getElementById('start-btn').disabled = false;
+            const startBtn = document.getElementById('start-btn');
+            if (startBtn) {
+                log('Enabling start button');
+                startBtn.disabled = false;
+            }
         },
         (progress) => {
             log(`Loading: ${(progress.loaded / progress.total * 100).toFixed(0)}%`);
@@ -411,5 +415,12 @@ document.addEventListener('DOMContentLoaded', () => {
     log('DOM loaded, starting...');
     initThreeJS();
     initMediaPipe();
-    document.getElementById('start-btn').addEventListener('click', startCamera);
+    
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) {
+        log('Start button found, adding click listener');
+        startBtn.addEventListener('click', startCamera);
+    } else {
+        log('ERROR: start-btn element not found!');
+    }
 });
