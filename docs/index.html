@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robotic Hand Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #0a0a0a;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #container {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+        #webcam-section {
+            position: relative;
+            width: 320px;
+            height: 240px;
+            margin: 20px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #111;
+        }
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+        #canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1);
+        }
+        #scene-container {
+            flex: 1;
+            position: relative;
+        }
+        #three-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            max-width: 300px;
+        }
+        #controls h1 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: #00ff88;
+        }
+        #controls p {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 15px;
+        }
+        #status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #status.initializing { background: #444; color: #aaa; }
+        #status.active { background: #00ff88; color: #000; }
+        #status.error { background: #ff4444; color: #fff; }
+        #start-btn {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        #start-btn:hover { background: #00cc6a; }
+        #start-btn:disabled {
+            background: #444;
+            color: #888;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="webcam-section">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="canvas-overlay"></canvas>
+        </div>
+        <div id="scene-container">
+            <canvas id="three-canvas"></canvas>
+            <div id="controls">
+                <h1>Robotic Hand Tracker</h1>
+                <p>Move your hand to control the robotic hand.</p>
+                <span id="status" class="initializing">Initializing...</span>
+                <button id="start-btn" disabled>Start Camera</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="hand-tracker.js"></script>
+</body>
+</html>
