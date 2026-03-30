@@ -28,24 +28,24 @@ const LANDMARKS = {
     PINKY_MCP: 17, PINKY_PIP: 18, PINKY_DIP: 19, PINKY_TIP: 20
 };
 
-// Bone name mapping from GLTF to code
+// Bone name mapping - these are the actual armature control bones
 const BONE_MAP = {
     'Root': 'Root',
-    'Palm': 'Palm_Base',
-    'Index_MCP': 'Index_MCP_Joint',
-    'Index_PIP': 'Index_PIP_Joint',
-    'Index_DIP': 'Index_DIP_Joint',
-    'Middle_MCP': 'Middle_MCP_Joint',
-    'Middle_PIP': 'Middle_PIP_Joint',
-    'Middle_DIP': 'Middle_DIP_Joint',
-    'Ring_MCP': 'Ring_MCP_Joint',
-    'Ring_PIP': 'Ring_PIP_Joint',
-    'Ring_DIP': 'Ring_DIP_Joint',
-    'Pinky_MCP': 'Pinky_MCP_Joint',
-    'Pinky_PIP': 'Pinky_PIP_Joint',
-    'Pinky_DIP': 'Pinky_DIP_Joint',
-    'Thumb_MCP': 'Thumb_MCP_Joint',
-    'Thumb_IP': 'Thumb_IP_Joint'
+    'Palm': 'Palm',
+    'Index_MCP': 'Index_MCP',
+    'Index_PIP': 'Index_PIP',
+    'Index_DIP': 'Index_DIP',
+    'Middle_MCP': 'Middle_MCP',
+    'Middle_PIP': 'Middle_PIP',
+    'Middle_DIP': 'Middle_DIP',
+    'Ring_MCP': 'Ring_MCP',
+    'Ring_PIP': 'Ring_PIP',
+    'Ring_DIP': 'Ring_DIP',
+    'Pinky_MCP': 'Pinky_MCP',
+    'Pinky_PIP': 'Pinky_PIP',
+    'Pinky_DIP': 'Pinky_DIP',
+    'Thumb_CMC': 'Thumb_CMC',
+    'Thumb_IP': 'Thumb_IP'
 };
 
 let scene, camera, renderer, controls;
