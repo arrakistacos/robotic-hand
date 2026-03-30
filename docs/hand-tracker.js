@@ -207,16 +207,20 @@ function mapLandmarksToBones(landmarks) {
     });
 }
 
+let testRotation = 0;
+
 function animate() {
     requestAnimationFrame(animate);
     
-    if (currentLandmarks && isModelLoaded) {
-        mapLandmarksToBones(currentLandmarks);
+    // DEBUG: Test rotation - wiggle Root bone
+    if (armature && bones['Root']) {
+        testRotation += 0.01;
+        bones['Root'].rotation.y = Math.sin(testRotation) * 0.3;
+        armature.updateMatrixWorld(true);
     }
     
-    // Update armature matrices
-    if (armature) {
-        armature.updateMatrixWorld(true);
+    if (currentLandmarks && isModelLoaded) {
+        mapLandmarksToBones(currentLandmarks);
     }
     
     controls.update();
