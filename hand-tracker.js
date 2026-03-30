@@ -93,17 +93,68 @@ function loadRoboticHand() {
                 }
             });
             
-            // Find all bones - they're children of the armature
+            // Reparent meshes to bones
+            // Meshes are siblings of bones - need to attach them
+            const meshToBoneMap = {
+                'Index_Proximal': 'Index_MCP',
+                'Index_Middle': 'Index_PIP', 
+                'Index_Distal': 'Index_DIP',
+                'Middle_Proximal': 'Middle_MCP',
+                'Middle_Middle': 'Middle_PIP',
+                'Middle_Distal': 'Middle_DIP',
+                'Ring_Proximal': 'Ring_MCP',
+                'Ring_Middle': 'Ring_PIP',
+                'Ring_Distal': 'Ring_DIP',
+                'Pinky_Proximal': 'Pinky_MCP',
+                'Pinky_Middle': 'Pinky_PIP',
+                'Pinky_Distal': 'Pinky_DIP',
+                'Thumb_Proximal': 'Thumb_CMC',
+                'Thumb_Distal': 'Thumb_IP',
+                'Palm_Base': 'Palm'
+            };
+            
             if (armature) {
+                // First find all meshes and bones
+                const meshes = {};
+                
                 armature.traverse((child) => {
-                    // Bones have type "Bone" or are part of the armature hierarchy
-                    if (child.isBone || child.type === 'Bone') {
-                        const name = child.name;
+                    const name = child.name;
+                    
+                    // Check if this is a mesh that needs reparenting
+                    if (meshToBoneMap[name]) {
+                        meshes[name] = child;
+                        log(`Found mesh to reparent: ${name}`);
+                    }
+                    
+                    // Check if it's a bone
+                    if (child.isBone || child.type === 'Bone' || ['Root', 'Palm', 'Index_MCP', 'Index_PIP', 'Index_DIP'].some(b => name === b)) {
                         bones[name] = child;
                         targetRotations[name] = { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z };
-                        log(`Found bone: ${name} at rotation x=${child.rotation.x.toFixed(2)}`);
                     }
                 });
+                
+                // Now reparent meshes to their corresponding bones
+                for (let [meshName, boneName] of Object.entries(meshToBoneMap)) {
+                    const mesh = meshes[meshName];
+                    const bone = bones[boneName];
+                    
+                    if (mesh && bone) {
+                        // Store mesh's world transform
+                        mesh.updateMatrixWorld();
+                        const worldMatrix = mesh.matrixWorld.clone();
+                        
+                        // Reparent
+                        bone.add(mesh);
+                        
+                        // Restore world transform
+                        mesh.matrix.copy(worldMatrix);
+                        mesh.matrix.decompose(mesh.position, mesh.rotation, mesh.scale);
+                        
+                        log(`Reparented ${meshName} -> ${boneName}`);
+                    } else {
+                        log(`Could not reparent: ${meshName} (mesh=${!!mesh}, bone=${!!bone})`);
+                    }
+                }
             }
             
             log(`Total bones found: ${Object.keys(bones).length}`);
