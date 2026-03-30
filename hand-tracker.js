@@ -1,5 +1,5 @@
 /**
- * Robotic Hand Tracker - Fixed for Rigid Hierarchy
+ * Robotic Hand Tracker - Terminator Hand
  */
 
 const CONFIG = {
@@ -8,7 +8,7 @@ const CONFIG = {
     handConfidence: 0.5,
     trackingConfidence: 0.5,
     smoothFactor: 0.15,
-    scaleFactor: 5
+    scaleFactor: 4
 };
 
 const HAND_CONNECTIONS = [
@@ -28,14 +28,13 @@ const LANDMARKS = {
 };
 
 let scene, camera, renderer, controls;
-let armature = null;  // The actual armature object
-let bones = {};       // Map of bone names to bone objects
+let armature = null;
+let bones = {};
 let targetRotations = {};
 let currentLandmarks = null;
 let hands;
 let webcamElement, canvasElement, canvasCtx;
 let isModelLoaded = false;
-let debugFrame = 0;
 
 function log(msg) {
     console.log('[HandTracker]', msg);
@@ -46,143 +45,140 @@ function initThreeJS() {
     const container = document.getElementById('scene-container');
     
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a);
+    scene.background = new THREE.Color(0x0a0a0a);
     
     camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 100);
-    camera.position.set(0, 0.3, 0.6);
+    camera.position.set(0, 0.25, 0.5);
     
     renderer = new THREE.WebGLRenderer({ 
         canvas: document.getElementById('three-canvas'), 
         antialias: true
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 0.1, 0);
+    controls.target.set(0, 0.05, 0);
     
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    // Dramatic lighting for Terminator
+    scene.add(new THREE.AmbientLight(0x404040, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
-    scene.add(new THREE.GridHelper(2, 20, 0x444444, 0x222222));
+    const rimLight = new THREE.DirectionalLight(0x4444ff, 0.5);
+    rimLight.position.set(-5, 2, -5);
+    scene.add(rimLight);
+    scene.add(new THREE.GridHelper(2, 20, 0x333333, 0x111111));
     
-    loadRoboticHand();
+    loadTerminatorHand();
     window.addEventListener('resize', onWindowResize);
     animate();
 }
 
-function loadRoboticHand() {
-    log('Loading GLTF...');
+function loadTerminatorHand() {
+    log('Loading Terminator hand...');
     const loader = new THREE.GLTFLoader();
     
-    loader.load('robotic_hand.gltf', 
+    loader.load('terminator_hand.gltf', 
         (gltf) => {
-            log('GLTF loaded');
+            log('Terminator hand loaded');
             
-            // Add entire scene
             const model = gltf.scene;
             model.scale.set(CONFIG.scaleFactor, CONFIG.scaleFactor, CONFIG.scaleFactor);
             scene.add(model);
             
-            // Find the armature - it's named "RoboticHand_Armature"
+            // Find armature
             model.traverse((obj) => {
-                if (obj.name === 'RoboticHand_Armature') {
+                if (obj.name === 'TerminatorHand_Armature') {
                     armature = obj;
                     log('Found armature: ' + obj.name);
                 }
             });
             
-            // Reparent meshes to bones
-            // Meshes are siblings of bones - need to attach them
+            // Terminator hand mesh-to-bone mapping
             const meshToBoneMap = {
-                'Index_Proximal': 'Index_MCP',
-                'Index_Middle': 'Index_PIP', 
-                'Index_Distal': 'Index_DIP',
-                'Middle_Proximal': 'Middle_MCP',
-                'Middle_Middle': 'Middle_PIP',
-                'Middle_Distal': 'Middle_DIP',
-                'Ring_Proximal': 'Ring_MCP',
-                'Ring_Middle': 'Ring_PIP',
-                'Ring_Distal': 'Ring_DIP',
-                'Pinky_Proximal': 'Pinky_MCP',
-                'Pinky_Middle': 'Pinky_PIP',
-                'Pinky_Distal': 'Pinky_DIP',
-                'Thumb_Proximal': 'Thumb_CMC',
-                'Thumb_Distal': 'Thumb_IP',
-                'Palm_Base': 'Palm'
+                // Index finger
+                'Index_Proximal_Segment': 'Index_MCP',
+                'Index_Proximal_Piston': 'Index_MCP',
+                'Index_Middle_Segment': 'Index_PIP',
+                'Index_Middle_Piston': 'Index_PIP',
+                'Index_Distal_Segment': 'Index_DIP',
+                // Middle
+                'Middle_Proximal_Segment': 'Middle_MCP',
+                'Middle_Proximal_Piston': 'Middle_MCP',
+                'Middle_Middle_Segment': 'Middle_PIP',
+                'Middle_Middle_Piston': 'Middle_PIP',
+                'Middle_Distal_Segment': 'Middle_DIP',
+                // Ring
+                'Ring_Proximal_Segment': 'Ring_MCP',
+                'Ring_Proximal_Piston': 'Ring_MCP',
+                'Ring_Middle_Segment': 'Ring_PIP',
+                'Ring_Middle_Piston': 'Ring_PIP',
+                'Ring_Distal_Segment': 'Ring_DIP',
+                // Pinky
+                'Pinky_Proximal_Segment': 'Pinky_MCP',
+                'Pinky_Proximal_Piston': 'Pinky_MCP',
+                'Pinky_Middle_Segment': 'Pinky_PIP',
+                'Pinky_Middle_Piston': 'Pinky_PIP',
+                'Pinky_Distal_Segment': 'Pinky_DIP',
+                // Thumb
+                'Thumb_Proximal_Segment': 'Thumb_CMC',
+                'Thumb_Proximal_Piston': 'Thumb_CMC',
+                'Thumb_Distal_Segment': 'Thumb_IP',
+                // Palm
+                'Palm_Base': 'Palm',
+                'Cube': 'Palm'
             };
             
             if (armature) {
-                // First find all meshes and bones
                 const meshes = {};
                 
                 armature.traverse((child) => {
                     const name = child.name;
                     
-                    // Check if this is a mesh that needs reparenting
+                    // Collect meshes to reparent
                     if (meshToBoneMap[name]) {
                         meshes[name] = child;
-                        log(`Found mesh to reparent: ${name}`);
                     }
                     
-                    // Check if it's a bone
-                    if (child.isBone || child.type === 'Bone' || ['Root', 'Palm', 'Index_MCP', 'Index_PIP', 'Index_DIP'].some(b => name === b)) {
+                    // Collect bones
+                    if (['Root', 'Palm', 'Index_MCP', 'Index_PIP', 'Index_DIP',
+                         'Middle_MCP', 'Middle_PIP', 'Middle_DIP',
+                         'Ring_MCP', 'Ring_PIP', 'Ring_DIP',
+                         'Pinky_MCP', 'Pinky_PIP', 'Pinky_DIP',
+                         'Thumb_CMC', 'Thumb_IP'].includes(name)) {
                         bones[name] = child;
                         targetRotations[name] = { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z };
                     }
                 });
                 
-                // Now reparent meshes to their corresponding bones
+                // Reparent meshes to bones
                 for (let [meshName, boneName] of Object.entries(meshToBoneMap)) {
                     const mesh = meshes[meshName];
                     const bone = bones[boneName];
                     
                     if (mesh && bone) {
-                        // Store mesh's world transform
                         mesh.updateMatrixWorld();
                         const worldMatrix = mesh.matrixWorld.clone();
-                        
-                        // Reparent
                         bone.add(mesh);
-                        
-                        // Restore world transform
                         mesh.matrix.copy(worldMatrix);
                         mesh.matrix.decompose(mesh.position, mesh.rotation, mesh.scale);
-                        
-                        log(`Reparented ${meshName} -> ${boneName}`);
-                    } else {
-                        log(`Could not reparent: ${meshName} (mesh=${!!mesh}, bone=${!!bone})`);
                     }
                 }
             }
             
-            log(`Total bones found: ${Object.keys(bones).length}`);
-            
-            // Check for control bones
-            const controlBones = ['Root', 'Palm', 'Index_MCP', 'Index_PIP', 'Index_DIP', 
-                                  'Middle_MCP', 'Middle_PIP', 'Middle_DIP',
-                                  'Ring_MCP', 'Ring_PIP', 'Ring_DIP',
-                                  'Pinky_MCP', 'Pinky_PIP', 'Pinky_DIP',
-                                  'Thumb_CMC', 'Thumb_IP'];
-            
-            controlBones.forEach(name => {
-                if (bones[name]) {
-                    log(`✓ Control bone ready: ${name}`);
-                } else {
-                    log(`✗ Missing control bone: ${name}`);
-                }
-            });
+            log(`Bones ready: ${Object.keys(bones).join(', ')}`);
             
             isModelLoaded = true;
-            updateStatus('active', 'Model loaded - Start camera');
+            updateStatus('active', 'Terminator hand loaded - Start camera');
             const startBtn = document.getElementById('start-btn');
             if (startBtn) startBtn.disabled = false;
         },
         undefined,
         (error) => {
             log(`ERROR: ${error}`);
-            updateStatus('error', 'Failed to load model');
+            updateStatus('error', 'Failed to load hand');
         }
     );
 }
@@ -206,10 +202,7 @@ function mapLandmarksToBones(landmarks) {
     // Wrist rotation
     if (bones['Root']) {
         const angleY = Math.atan2(middleMCP.x - wrist.x, middleMCP.z - wrist.z);
-        // Apply rotation around Y axis
         bones['Root'].rotation.y = angleY;
-        bones['Root'].rotation.x = 0;
-        bones['Root'].rotation.z = 0;
     }
     
     // Finger mappings
@@ -230,48 +223,26 @@ function mapLandmarksToBones(landmarks) {
         const curlPIP = calculateJointAngle(mcp, pip, dip);
         
         if (f.isThumb) {
-            // Thumb uses CMC and IP
             if (bones['Thumb_CMC']) bones['Thumb_CMC'].rotation.x = curlMCP * 0.5;
             if (bones['Thumb_IP']) bones['Thumb_IP'].rotation.x = curlPIP;
         } else {
-            // Standard fingers
             const mcpBone = bones[`${f.name}_MCP`];
             const pipBone = bones[`${f.name}_PIP`];
             const dipBone = bones[`${f.name}_DIP`];
             
-            if (mcpBone) {
-                mcpBone.rotation.x = curlMCP;
-                mcpBone.rotation.y = 0;
-                mcpBone.rotation.z = 0;
-            }
-            if (pipBone) {
-                pipBone.rotation.x = curlPIP;
-                pipBone.rotation.y = 0;
-                pipBone.rotation.z = 0;
-            }
-            if (dipBone) {
-                dipBone.rotation.x = curlPIP * 0.8;
-                dipBone.rotation.y = 0;
-                dipBone.rotation.z = 0;
-            }
+            if (mcpBone) mcpBone.rotation.x = curlMCP;
+            if (pipBone) pipBone.rotation.x = curlPIP;
+            if (dipBone) dipBone.rotation.x = curlPIP * 0.8;
         }
     });
 }
 
-let testRotation = 0;
-
 function animate() {
     requestAnimationFrame(animate);
     
-    // DEBUG: Test rotation - wiggle Root bone
-    if (armature && bones['Root']) {
-        testRotation += 0.01;
-        bones['Root'].rotation.y = Math.sin(testRotation) * 0.3;
-        armature.updateMatrixWorld(true);
-    }
-    
     if (currentLandmarks && isModelLoaded) {
         mapLandmarksToBones(currentLandmarks);
+        if (armature) armature.updateMatrixWorld(true);
     }
     
     controls.update();
