@@ -134,6 +134,16 @@ function loadRoboticHand() {
             }
             
             scene.add(roboticHand);
+            
+            // Find and configure skinned meshes
+            roboticHand.traverse((child) => {
+                if (child.isSkinnedMesh) {
+                    log(`Found skinned mesh: ${child.name}`);
+                    // Ensure skeleton matrices are updated
+                    child.skeleton.update();
+                }
+            });
+            
             isModelLoaded = true;
             updateStatus('active', 'Model loaded - Start camera to track');
             document.getElementById('start-btn').disabled = false;
@@ -220,23 +230,39 @@ function updateBoneRotations() {
     if (!isModelLoaded) return;
     
     debugFrame++;
-    if (debugFrame % 60 === 0) {
-        log(`Animation frame ${debugFrame}, currentLandmarks: ${currentLandmarks ? 'YES' : 'NO'}`);
-        if (currentLandmarks) {
-            const mcp = bones['Index_MCP'];
-            if (mcp) {
-                log(`Index_MCP rotation: x=${mcp.rotation.x.toFixed(2)}, target=${targetRotations['Index_MCP']?.x.toFixed(2)}`);
-            }
-        }
-    }
+    let bonesUpdated = 0;
     
     for (let name in targetRotations) {
         const bone = bones[name];
         const target = targetRotations[name];
         if (bone && target) {
+            const oldX = bone.rotation.x;
             bone.rotation.x += (target.x - bone.rotation.x) * CONFIG.smoothFactor;
             bone.rotation.y += (target.y - bone.rotation.y) * CONFIG.smoothFactor;
             bone.rotation.z += (target.z - bone.rotation.z) * CONFIG.smoothFactor;
+            
+            // CRITICAL: Update matrix so skinned mesh sees the change
+            bone.updateMatrix();
+            bone.updateWorldMatrix(true, false);
+            
+            if (Math.abs(bone.rotation.x - oldX) > 0.001) {
+                bonesUpdated++;
+            }
+        }
+    }
+    
+    // Update the entire model's world matrix
+    if (roboticHand) {
+        roboticHand.updateMatrixWorld(true);
+    }
+    
+    if (debugFrame % 60 === 0) {
+        log(`Frame ${debugFrame}: landmarks=${currentLandmarks ? 'YES' : 'NO'}, bonesUpdated=${bonesUpdated}`);
+        if (currentLandmarks) {
+            const mcp = bones['Index_MCP'];
+            if (mcp) {
+                log(`Index_MCP: rotX=${mcp.rotation.x.toFixed(3)}, target=${targetRotations['Index_MCP']?.x.toFixed(3)}`);
+            }
         }
     }
 }
@@ -341,6 +367,13 @@ function animate() {
     
     // Apply rotations to bones
     updateBoneRotations();
+    
+    // Update skeleton matrices for skinned meshes
+    roboticHand.traverse((child) => {
+        if (child.isSkinnedMesh && child.skeleton) {
+            child.skeleton.update();
+        }
+    });
     
     // Update controls and render
     controls.update();
