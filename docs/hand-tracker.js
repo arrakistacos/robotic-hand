@@ -367,6 +367,10 @@ async function startCamera() {
 function animate() {
     requestAnimationFrame(animate);
     
+    if (!renderer || !scene || !camera) {
+        return;
+    }
+    
     // Check if we have landmarks to process
     if (currentLandmarks && isModelLoaded) {
         mapLandmarksToBones(currentLandmarks);
@@ -377,15 +381,19 @@ function animate() {
     
     // Update skeleton matrices for skinned meshes
     if (roboticHand) {
-        roboticHand.traverse((child) => {
-            if (child.isSkinnedMesh && child.skeleton) {
-                child.skeleton.update();
-            }
-        });
+        try {
+            roboticHand.traverse((child) => {
+                if (child && child.isSkinnedMesh && child.skeleton) {
+                    child.skeleton.update();
+                }
+            });
+        } catch (e) {
+            console.error('traverse error:', e);
+        }
     }
     
     // Update controls and render
-    controls.update();
+    if (controls) controls.update();
     renderer.render(scene, camera);
 }
 
