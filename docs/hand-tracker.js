@@ -100,14 +100,14 @@ function mapLandmarksToBones(landmarks) {
         if (f.isThumb) {
             const cmc = calculateJointAngle(wrist, mcp, pip);
             const ip = calculateJointAngle(mcp, pip, dip);
-            if (bones['Thumb_CMC']) targetRotations['Thumb_CMC'] = { x: cmc * 0.5, y: 0.3, z: 0 };
-            if (bones['Thumb_IP']) targetRotations['Thumb_IP'] = { x: ip, y: 0, z: 0 };
+            if (bones['Thumb_MCP_Joint']) targetRotations['Thumb_MCP_Joint'] = { x: cmc * 0.5, y: 0.3, z: 0 };
+            if (bones['Thumb_IP_Joint']) targetRotations['Thumb_IP_Joint'] = { x: ip, y: 0, z: 0 };
         } else {
             const mcpAngle = calculateJointAngle(wrist, mcp, pip);
             const pipAngle = calculateJointAngle(mcp, pip, dip);
-            if (bones[`${f.name}_MCP`]) targetRotations[`${f.name}_MCP`] = { x: mcpAngle, y: 0, z: 0 };
-            if (bones[`${f.name}_PIP`]) targetRotations[`${f.name}_PIP`] = { x: pipAngle, y: 0, z: 0 };
-            if (bones[`${f.name}_DIP`]) targetRotations[`${f.name}_DIP`] = { x: pipAngle * 0.7, y: 0, z: 0 };
+            if (bones[`${f.name}_MCP_Joint`]) targetRotations[`${f.name}_MCP_Joint`] = { x: mcpAngle, y: 0, z: 0 };
+            if (bones[`${f.name}_PIP_Joint`]) targetRotations[`${f.name}_PIP_Joint`] = { x: pipAngle, y: 0, z: 0 };
+            if (bones[`${f.name}_DIP_Joint`]) targetRotations[`${f.name}_DIP_Joint`] = { x: pipAngle * 0.7, y: 0, z: 0 };
         }
     }
 }
