@@ -338,6 +338,13 @@ function initMediaPipe() {
 
 async function startCamera() {
     log('Starting camera...');
+    
+    if (!hands) {
+        log('ERROR: MediaPipe not initialized yet');
+        updateStatus('error', 'MediaPipe not ready - please wait');
+        return;
+    }
+    
     const camera = new Camera(webcamElement, {
         onFrame: async () => {
             await hands.send({image: webcamElement});
@@ -369,11 +376,13 @@ function animate() {
     updateBoneRotations();
     
     // Update skeleton matrices for skinned meshes
-    roboticHand.traverse((child) => {
-        if (child.isSkinnedMesh && child.skeleton) {
-            child.skeleton.update();
-        }
-    });
+    if (roboticHand) {
+        roboticHand.traverse((child) => {
+            if (child.isSkinnedMesh && child.skeleton) {
+                child.skeleton.update();
+            }
+        });
+    }
     
     // Update controls and render
     controls.update();
