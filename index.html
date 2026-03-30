@@ -1,29 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robotic Hand Tracker</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
         body {
+            margin: 0;
             background: #0a0a0a;
             color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             overflow: hidden;
         }
-        
         #container {
             display: flex;
             width: 100vw;
             height: 100vh;
         }
-        
         #webcam-section {
             position: relative;
             width: 320px;
@@ -34,14 +26,12 @@
             overflow: hidden;
             background: #111;
         }
-        
         #webcam {
             width: 100%;
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
         }
-        
         #canvas-overlay {
             position: absolute;
             top: 0;
@@ -50,17 +40,14 @@
             height: 100%;
             transform: scaleX(-1);
         }
-        
         #scene-container {
             flex: 1;
             position: relative;
         }
-        
         #three-canvas {
             width: 100%;
             height: 100%;
         }
-        
         #controls {
             position: absolute;
             top: 20px;
@@ -71,20 +58,17 @@
             border: 1px solid #333;
             max-width: 300px;
         }
-        
         #controls h1 {
             font-size: 1.2rem;
             margin-bottom: 10px;
             color: #00ff88;
         }
-        
         #controls p {
             font-size: 0.85rem;
             color: #888;
             margin-bottom: 15px;
             line-height: 1.4;
         }
-        
         #status {
             display: inline-block;
             padding: 5px 12px;
@@ -93,29 +77,9 @@
             font-weight: bold;
             margin-bottom: 10px;
         }
-        
-        #status.initializing {
-            background: #444;
-            color: #aaa;
-        }
-        
-        #status.active {
-            background: #00ff88;
-            color: #000;
-        }
-        
-        #status.error {
-            background: #ff4444;
-            color: #fff;
-        }
-        
-        .bone-info {
-            font-family: monospace;
-            font-size: 0.75rem;
-            color: #666;
-            margin-top: 10px;
-        }
-        
+        #status.initializing { background: #444; color: #aaa; }
+        #status.active { background: #00ff88; color: #000; }
+        #status.error { background: #ff4444; color: #fff; }
         #start-btn {
             background: #00ff88;
             color: #000;
@@ -125,31 +89,12 @@
             cursor: pointer;
             font-weight: bold;
             margin-top: 10px;
-            transition: background 0.2s;
         }
-        
-        #start-btn:hover {
-            background: #00cc6a;
-        }
-        
+        #start-btn:hover { background: #00cc6a; }
         #start-btn:disabled {
             background: #444;
             color: #888;
             cursor: not-allowed;
-        }
-        
-        .landmark-debug {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            font-family: monospace;
-            font-size: 0.75rem;
-            color: #888;
-            max-width: 250px;
         }
     </style>
 </head>
@@ -159,37 +104,24 @@
             <video id="webcam" autoplay playsinline></video>
             <canvas id="canvas-overlay"></canvas>
         </div>
-        
         <div id="scene-container">
             <canvas id="three-canvas"></canvas>
-            
             <div id="controls">
                 <h1>🤖 Robotic Hand Tracker</h1>
                 <p>Move your hand to control the robotic hand. Each finger joint is mapped to your actual hand movements.</p>
                 <span id="status" class="initializing">Initializing...</span>
                 <button id="start-btn" disabled>Start Camera</button>
-                <div class="bone-info" id="bone-info">
-                    Waiting for hand detection...
-                </div>
-            </div>
-            
-            <div class="landmark-debug" id="landmark-debug">
-                No hand detected
             </div>
         </div>
     </div>
 
-    <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-    
-    <!-- MediaPipe -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
     <script src="hand-tracker.js"></script>
 </body>
 </html>
