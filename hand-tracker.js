@@ -1,5 +1,5 @@
 /**
- * Robotic Hand Tracker - Debug Version
+ * Robotic Hand Tracker - Fixed for Rigid Hierarchy
  */
 
 const CONFIG = {
@@ -20,42 +20,22 @@ const HAND_CONNECTIONS = [
 ];
 
 const LANDMARKS = {
-    WRIST: 0,
-    THUMB_CMC: 1, THUMB_MCP: 2, THUMB_IP: 3, THUMB_TIP: 4,
+    WRIST: 0, THUMB_CMC: 1, THUMB_MCP: 2, THUMB_IP: 3, THUMB_TIP: 4,
     INDEX_MCP: 5, INDEX_PIP: 6, INDEX_DIP: 7, INDEX_TIP: 8,
     MIDDLE_MCP: 9, MIDDLE_PIP: 10, MIDDLE_DIP: 11, MIDDLE_TIP: 12,
     RING_MCP: 13, RING_PIP: 14, RING_DIP: 15, RING_TIP: 16,
     PINKY_MCP: 17, PINKY_PIP: 18, PINKY_DIP: 19, PINKY_TIP: 20
 };
 
-// Bone name mapping - these are the actual armature control bones
-const BONE_MAP = {
-    'Root': 'Root',
-    'Palm': 'Palm',
-    'Index_MCP': 'Index_MCP',
-    'Index_PIP': 'Index_PIP',
-    'Index_DIP': 'Index_DIP',
-    'Middle_MCP': 'Middle_MCP',
-    'Middle_PIP': 'Middle_PIP',
-    'Middle_DIP': 'Middle_DIP',
-    'Ring_MCP': 'Ring_MCP',
-    'Ring_PIP': 'Ring_PIP',
-    'Ring_DIP': 'Ring_DIP',
-    'Pinky_MCP': 'Pinky_MCP',
-    'Pinky_PIP': 'Pinky_PIP',
-    'Pinky_DIP': 'Pinky_DIP',
-    'Thumb_CMC': 'Thumb_CMC',
-    'Thumb_IP': 'Thumb_IP'
-};
-
 let scene, camera, renderer, controls;
-let roboticHand = null;
-let bones = {};
+let armature = null;  // The actual armature object
+let bones = {};       // Map of bone names to bone objects
 let targetRotations = {};
 let currentLandmarks = null;
 let hands;
 let webcamElement, canvasElement, canvasCtx;
 let isModelLoaded = false;
+let debugFrame = 0;
 
 function log(msg) {
     console.log('[HandTracker]', msg);
@@ -73,17 +53,14 @@ function initThreeJS() {
     
     renderer = new THREE.WebGLRenderer({ 
         canvas: document.getElementById('three-canvas'), 
-        antialias: true,
-        alpha: true
+        antialias: true
     });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.set(0, 0.1, 0);
     
-    // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(5, 10, 7);
@@ -91,72 +68,69 @@ function initThreeJS() {
     scene.add(new THREE.GridHelper(2, 20, 0x444444, 0x222222));
     
     loadRoboticHand();
-    
     window.addEventListener('resize', onWindowResize);
     animate();
 }
 
 function loadRoboticHand() {
-    log('Loading GLTF model...');
+    log('Loading GLTF...');
     const loader = new THREE.GLTFLoader();
     
     loader.load('robotic_hand.gltf', 
         (gltf) => {
-            log('GLTF loaded successfully');
-            roboticHand = gltf.scene;
-            roboticHand.scale.set(CONFIG.scaleFactor, CONFIG.scaleFactor, CONFIG.scaleFactor);
+            log('GLTF loaded');
             
-            // Find all bones - GLTF skinned mesh bones are THREE.Bone objects
-            const foundBones = [];
-            roboticHand.traverse((child) => {
-                // Check if it's a bone from the armature
-                if (child.type === 'Bone' || child.isBone) {
-                    foundBones.push(child.name);
-                    bones[child.name] = child;
-                    // Store initial rotation
-                    targetRotations[child.name] = { 
-                        x: child.rotation.x, 
-                        y: child.rotation.y, 
-                        z: child.rotation.z 
-                    };
+            // Add entire scene
+            const model = gltf.scene;
+            model.scale.set(CONFIG.scaleFactor, CONFIG.scaleFactor, CONFIG.scaleFactor);
+            scene.add(model);
+            
+            // Find the armature - it's named "RoboticHand_Armature"
+            model.traverse((obj) => {
+                if (obj.name === 'RoboticHand_Armature') {
+                    armature = obj;
+                    log('Found armature: ' + obj.name);
                 }
             });
             
-            log(`Found ${foundBones.length} bones: ${foundBones.join(', ')}`);
-            
-            // Check if our mapped bones exist
-            for (let [key, boneName] of Object.entries(BONE_MAP)) {
-                if (bones[boneName]) {
-                    log(`✓ Mapped bone: ${key} -> ${boneName}`);
-                } else {
-                    log(`✗ Missing bone: ${boneName}`);
-                }
+            // Find all bones - they're children of the armature
+            if (armature) {
+                armature.traverse((child) => {
+                    // Bones have type "Bone" or are part of the armature hierarchy
+                    if (child.isBone || child.type === 'Bone') {
+                        const name = child.name;
+                        bones[name] = child;
+                        targetRotations[name] = { x: child.rotation.x, y: child.rotation.y, z: child.rotation.z };
+                        log(`Found bone: ${name} at rotation x=${child.rotation.x.toFixed(2)}`);
+                    }
+                });
             }
             
-            scene.add(roboticHand);
+            log(`Total bones found: ${Object.keys(bones).length}`);
             
-            // Find and configure skinned meshes
-            roboticHand.traverse((child) => {
-                if (child.isSkinnedMesh) {
-                    log(`Found skinned mesh: ${child.name}`);
-                    // Ensure skeleton matrices are updated
-                    child.skeleton.update();
+            // Check for control bones
+            const controlBones = ['Root', 'Palm', 'Index_MCP', 'Index_PIP', 'Index_DIP', 
+                                  'Middle_MCP', 'Middle_PIP', 'Middle_DIP',
+                                  'Ring_MCP', 'Ring_PIP', 'Ring_DIP',
+                                  'Pinky_MCP', 'Pinky_PIP', 'Pinky_DIP',
+                                  'Thumb_CMC', 'Thumb_IP'];
+            
+            controlBones.forEach(name => {
+                if (bones[name]) {
+                    log(`✓ Control bone ready: ${name}`);
+                } else {
+                    log(`✗ Missing control bone: ${name}`);
                 }
             });
             
             isModelLoaded = true;
-            updateStatus('active', 'Model loaded - Start camera to track');
+            updateStatus('active', 'Model loaded - Start camera');
             const startBtn = document.getElementById('start-btn');
-            if (startBtn) {
-                log('Enabling start button');
-                startBtn.disabled = false;
-            }
+            if (startBtn) startBtn.disabled = false;
         },
-        (progress) => {
-            log(`Loading: ${(progress.loaded / progress.total * 100).toFixed(0)}%`);
-        },
+        undefined,
         (error) => {
-            log(`ERROR loading GLTF: ${error}`);
+            log(`ERROR: ${error}`);
             updateStatus('error', 'Failed to load model');
         }
     );
@@ -165,110 +139,88 @@ function loadRoboticHand() {
 function calculateJointAngle(p1, p2, p3) {
     const v1 = { x: p1.x - p2.x, y: p1.y - p2.y, z: p1.z - p2.z };
     const v2 = { x: p3.x - p2.x, y: p3.y - p2.y, z: p3.z - p2.z };
-    const len1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y + v1.z * v1.z);
-    const len2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y + v2.z * v2.z);
+    const len1 = Math.sqrt(v1.x**2 + v1.y**2 + v1.z**2);
+    const len2 = Math.sqrt(v2.x**2 + v2.y**2 + v2.z**2);
     if (len1 === 0 || len2 === 0) return 0;
     const dot = (v1.x * v2.x + v1.y * v2.y + v1.z * v2.z) / (len1 * len2);
     return Math.acos(Math.max(-1, Math.min(1, dot)));
 }
 
 function mapLandmarksToBones(landmarks) {
-    if (!isModelLoaded || !landmarks) return;
+    if (!isModelLoaded || !armature) return;
     
     const wrist = landmarks[LANDMARKS.WRIST];
     const middleMCP = landmarks[LANDMARKS.MIDDLE_MCP];
     
-    // Calculate and store angles
-    let updatedBones = 0;
-    
-    // Root/Palm rotation
-    if (bones[BONE_MAP.Root]) {
+    // Wrist rotation
+    if (bones['Root']) {
         const angleY = Math.atan2(middleMCP.x - wrist.x, middleMCP.z - wrist.z);
-        targetRotations[BONE_MAP.Root] = { x: 0, y: angleY, z: 0 };
-        updatedBones++;
+        // Apply rotation around Y axis
+        bones['Root'].rotation.y = angleY;
+        bones['Root'].rotation.x = 0;
+        bones['Root'].rotation.z = 0;
     }
     
-    // Map fingers
+    // Finger mappings
     const fingers = [
-        { name: 'Index', mcp: LANDMARKS.INDEX_MCP, pip: LANDMARKS.INDEX_PIP, dip: LANDMARKS.INDEX_DIP },
-        { name: 'Middle', mcp: LANDMARKS.MIDDLE_MCP, pip: LANDMARKS.MIDDLE_PIP, dip: LANDMARKS.MIDDLE_DIP },
-        { name: 'Ring', mcp: LANDMARKS.RING_MCP, pip: LANDMARKS.RING_PIP, dip: LANDMARKS.RING_DIP },
-        { name: 'Pinky', mcp: LANDMARKS.PINKY_MCP, pip: LANDMARKS.PINKY_PIP, dip: LANDMARKS.PINKY_DIP },
-        { name: 'Thumb', mcp: LANDMARKS.THUMB_MCP, pip: LANDMARKS.THUMB_IP, dip: LANDMARKS.THUMB_TIP, isThumb: true }
+        { name: 'Index', mcp: 5, pip: 6, dip: 7 },
+        { name: 'Middle', mcp: 9, pip: 10, dip: 11 },
+        { name: 'Ring', mcp: 13, pip: 14, dip: 15 },
+        { name: 'Pinky', mcp: 17, pip: 18, dip: 19 },
+        { name: 'Thumb', mcp: 2, pip: 3, dip: 4, isThumb: true }
     ];
     
-    for (let f of fingers) {
+    fingers.forEach(f => {
         const mcp = landmarks[f.mcp];
         const pip = landmarks[f.pip];
         const dip = landmarks[f.dip];
         
-        const mcpJoint = BONE_MAP[`${f.name}_MCP`];
-        const pipJoint = f.isThumb ? BONE_MAP.Thumb_IP : BONE_MAP[`${f.name}_PIP`];
-        const dipJoint = f.isThumb ? null : BONE_MAP[`${f.name}_DIP`];
-        
         const curlMCP = calculateJointAngle(wrist, mcp, pip);
         const curlPIP = calculateJointAngle(mcp, pip, dip);
         
-        if (mcpJoint && bones[mcpJoint]) {
-            targetRotations[mcpJoint] = { x: curlMCP * (f.isThumb ? 0.5 : 1.0), y: 0, z: 0 };
-            updatedBones++;
+        if (f.isThumb) {
+            // Thumb uses CMC and IP
+            if (bones['Thumb_CMC']) bones['Thumb_CMC'].rotation.x = curlMCP * 0.5;
+            if (bones['Thumb_IP']) bones['Thumb_IP'].rotation.x = curlPIP;
+        } else {
+            // Standard fingers
+            const mcpBone = bones[`${f.name}_MCP`];
+            const pipBone = bones[`${f.name}_PIP`];
+            const dipBone = bones[`${f.name}_DIP`];
+            
+            if (mcpBone) {
+                mcpBone.rotation.x = curlMCP;
+                mcpBone.rotation.y = 0;
+                mcpBone.rotation.z = 0;
+            }
+            if (pipBone) {
+                pipBone.rotation.x = curlPIP;
+                pipBone.rotation.y = 0;
+                pipBone.rotation.z = 0;
+            }
+            if (dipBone) {
+                dipBone.rotation.x = curlPIP * 0.8;
+                dipBone.rotation.y = 0;
+                dipBone.rotation.z = 0;
+            }
         }
-        if (pipJoint && bones[pipJoint]) {
-            targetRotations[pipJoint] = { x: curlPIP, y: 0, z: 0 };
-            updatedBones++;
-        }
-        if (dipJoint && bones[dipJoint]) {
-            targetRotations[dipJoint] = { x: curlPIP * 0.8, y: 0, z: 0 };
-            updatedBones++;
-        }
-    }
-    
-    if (debugFrame % 60 === 0) {
-        log(`Updated ${updatedBones} bone targets`);
-    }
+    });
 }
 
-let debugFrame = 0;
-
-function updateBoneRotations() {
-    if (!isModelLoaded) return;
+function animate() {
+    requestAnimationFrame(animate);
     
-    debugFrame++;
-    let bonesUpdated = 0;
-    
-    for (let name in targetRotations) {
-        const bone = bones[name];
-        const target = targetRotations[name];
-        if (bone && target) {
-            const oldX = bone.rotation.x;
-            bone.rotation.x += (target.x - bone.rotation.x) * CONFIG.smoothFactor;
-            bone.rotation.y += (target.y - bone.rotation.y) * CONFIG.smoothFactor;
-            bone.rotation.z += (target.z - bone.rotation.z) * CONFIG.smoothFactor;
-            
-            // CRITICAL: Update matrix so skinned mesh sees the change
-            bone.updateMatrix();
-            bone.updateWorldMatrix(true, false);
-            
-            if (Math.abs(bone.rotation.x - oldX) > 0.001) {
-                bonesUpdated++;
-            }
-        }
+    if (currentLandmarks && isModelLoaded) {
+        mapLandmarksToBones(currentLandmarks);
     }
     
-    // Update the entire model's world matrix
-    if (roboticHand) {
-        roboticHand.updateMatrixWorld(true);
+    // Update armature matrices
+    if (armature) {
+        armature.updateMatrixWorld(true);
     }
     
-    if (debugFrame % 60 === 0) {
-        log(`Frame ${debugFrame}: landmarks=${currentLandmarks ? 'YES' : 'NO'}, bonesUpdated=${bonesUpdated}`);
-        if (currentLandmarks) {
-            const mcp = bones['Index_MCP'];
-            if (mcp) {
-                log(`Index_MCP: rotX=${mcp.rotation.x.toFixed(3)}, target=${targetRotations['Index_MCP']?.x.toFixed(3)}`);
-            }
-        }
-    }
+    controls.update();
+    renderer.render(scene, camera);
 }
 
 function drawSkeleton(landmarks) {
@@ -318,7 +270,6 @@ function updateStatus(cls, msg) {
 }
 
 function initMediaPipe() {
-    log('Initializing MediaPipe...');
     webcamElement = document.getElementById('webcam');
     canvasElement = document.getElementById('canvas-overlay');
     canvasCtx = canvasElement.getContext('2d');
@@ -344,8 +295,7 @@ async function startCamera() {
     log('Starting camera...');
     
     if (!hands) {
-        log('ERROR: MediaPipe not initialized yet');
-        updateStatus('error', 'MediaPipe not ready - please wait');
+        updateStatus('error', 'MediaPipe not ready');
         return;
     }
     
@@ -359,7 +309,6 @@ async function startCamera() {
     
     try {
         await camera.start();
-        log('Camera started');
         document.getElementById('start-btn').textContent = 'Camera Active';
         document.getElementById('start-btn').disabled = true;
     } catch (e) {
@@ -367,42 +316,6 @@ async function startCamera() {
         updateStatus('error', 'Camera access denied');
     }
 }
-
-function animate() {
-    requestAnimationFrame(animate);
-    
-    if (!renderer || !scene || !camera) {
-        return;
-    }
-    
-    // Check if we have landmarks to process
-    if (currentLandmarks && isModelLoaded) {
-        mapLandmarksToBones(currentLandmarks);
-    }
-    
-    // Apply rotations to bones
-    updateBoneRotations();
-    
-    // Update skeleton matrices for skinned meshes
-    if (roboticHand) {
-        try {
-            roboticHand.traverse((child) => {
-                if (child && child.isSkinnedMesh && child.skeleton) {
-                    child.skeleton.update();
-                }
-            });
-        } catch (e) {
-            console.error('traverse error:', e);
-        }
-    }
-    
-    // Update controls and render
-    if (controls) controls.update();
-    renderer.render(scene, camera);
-}
-
-// Start animation immediately
-log('Animation loop started');
 
 function onWindowResize() {
     const container = document.getElementById('scene-container');
@@ -412,15 +325,12 @@ function onWindowResize() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    log('DOM loaded, starting...');
+    log('DOM loaded');
     initThreeJS();
     initMediaPipe();
     
     const startBtn = document.getElementById('start-btn');
     if (startBtn) {
-        log('Start button found, adding click listener');
         startBtn.addEventListener('click', startCamera);
-    } else {
-        log('ERROR: start-btn element not found!');
     }
 });
