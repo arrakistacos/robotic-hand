@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robotic Hand Tracker</title>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             margin: 0;
             background: #0a0a0a;
@@ -67,7 +69,6 @@
             font-size: 0.85rem;
             color: #888;
             margin-bottom: 15px;
-            line-height: 1.4;
         }
         #status {
             display: inline-block;
@@ -107,8 +108,8 @@
         <div id="scene-container">
             <canvas id="three-canvas"></canvas>
             <div id="controls">
-                <h1>🤖 Robotic Hand Tracker</h1>
-                <p>Move your hand to control the robotic hand. Each finger joint is mapped to your actual hand movements.</p>
+                <h1>Robotic Hand Tracker</h1>
+                <p>Move your hand to control the robotic hand.</p>
                 <span id="status" class="initializing">Initializing...</span>
                 <button id="start-btn" disabled>Start Camera</button>
             </div>
@@ -122,6 +123,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-    <script src="hand-tracker.js?v=3"></script>
+    <script src="hand-tracker.js"></script>
 </body>
 </html>
